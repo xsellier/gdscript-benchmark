@@ -22,4 +22,4 @@ Please only add [main.gd](main.gd) to your commits.  This entire readme file is 
 
 ```Godot version: 4.0-dev (custom_build)```
 
-    c_add_child_deferred  ***  21% faster than ***  c_add_child     (0.248 vs 0.300 msec)
+    c_add_child_deferred  *** 253% faster than ***  c_add_child     (0.019 vs 0.067 msec)
