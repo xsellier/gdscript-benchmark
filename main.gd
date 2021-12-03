@@ -1,5 +1,5 @@
+@tool
 extends Node
-export(bool) var click_to_run setget run
 
 var outfile
 var startusec = 0
@@ -11,7 +11,9 @@ func fileinit():
   outfile = File.new()
   if outfile.open("res://README.md", File.WRITE) != 0:
     print("ERROR OPENING FILE")
+
     return 1
+
   for line in [
       "# GDScript Syntax Benchmarks",
       "",
@@ -35,7 +37,7 @@ func fileinit():
       "",
       "## Results",
       "",
-      "```Godot version: %s```" % OS.get_engine_version().string,
+      "```Godot version: %s```" % [ Engine.get_version_info().string ],
       "",
       ]:
     outfile.store_string("%s\n" % line)
@@ -46,9 +48,9 @@ func printwrite(s):
   outfile.store_string("%s\n" % s)
 
 func _ready():
-  run(0)
+  run()
 
-func run(junk):
+func run():
   print()
   if fileinit():
     print("ERROR OPENING FILE")
@@ -57,64 +59,40 @@ func run(junk):
   bigarray.resize(1e6)
   timeit("warmup", true)
 
-  compare_funcs_time("format_str", "concat_str")
-  compare_funcs_time("float_cast", "float_inter")
-  compare_funcs_time("format_stemp", "format_dtemp")
-  compare_funcs_time("format_stemp", "format_cast")
-  compare_funcs_time("dict_loop", "dict_loopkeys")
-  compare_funcs_time("dict_in", "dict_has")
-  compare_funcs_time("call_funcref", "callfunc")
-  compare_funcs_time("call_funcref", "call_callv")
-  compare_funcs_time("call_call", "call_callv")
-  compare_funcs_time("int_incr", "int_increq")
-  compare_funcs_time("dictwr_point", "dictwr_var")
-  compare_funcs_time("dictwr_string", "dictwr_point")
-  compare_funcs_time("dictread_point", "dictread_var")
-  compare_funcs_time("dictread_string", "dictread_point")
-  compare_funcs_time("array_append", "array_index")
-  compare_funcs_time("array_append", "array_pushback")
-  compare_funcs_time("array_len", "array_size")
-  compare_funcs_time("array_front", "array_izero")
-  compare_funcs_time("array_back", "array_ineg")
-  compare_funcs_time("var_script", "var_func")
-  compare_funcs_time("var_script", "var_self")
-  compare_funcs_time("iter_for_range", "iter_for_int")
-  compare_funcs_time("iter_for", "iter_while")
-  compare_funcs_time("matches", "ifs")
-  compare_funcs_time("parray_appendrw", "array_appendrw")
-  compare_funcs_time("dontcallfunc", "callfunc")
-  compare_funcs_time("inteval", "inteval_auto")
-  compare_funcs_time("arrayeval", "arrayeval_auto")
-  compare_funcs_time("dicteval", "dicteval_auto")
-  compare_funcs_time("nulleval", "nulleval_auto")
+  compare_funcs_time("c_add_child", "c_add_child_deferred")
   outfile.close()
 
 func assign_startusec():
-  startusec = OS.get_ticks_msec()
+  startusec = Time.get_ticks_usec()
 
 func assign_elapsed():
-  elapsed = OS.get_ticks_msec() - startusec # do this first for accuracy
-  assert startusec != 0 # then check that startusec had been properly assigned
-  startusec = 0 # reset startusec
+  # do this first for accuracy
+  elapsed = Time.get_ticks_usec() - startusec
 
-func timeit(funcname, quiet=false):
+    # then check that startusec had been properly assigned
+  assert(startusec != 0)
+
+  # reset startusec
+  startusec = 0
+
+func timeit(funcname, quiet = false):
   assign_startusec()
   call(funcname)
   assign_elapsed()
+
   if not quiet:
     print("%s took %d usec" % [funcname, elapsed])
 
-func len(array):
-  return array.size()
-
 func compare_funcs_time(funcname1, funcname2):
-  for fn in [funcname1, funcname2]:
-    assert fn.length() <= 15 # for padding output strings
+  # for fn in [funcname1, funcname2]:
+  #   # for padding output strings
+  #   assert(fn.length() <= 15)
+
   timeit(funcname1, true)
   var elapsed1 = elapsed
   timeit(funcname2, true)
   var elapsed2 = elapsed
-  var e1_over_e2 = float(elapsed1)/float(elapsed2)
+  var e1_over_e2 = float(elapsed1) / float(elapsed2)
   var fasterfunc
   var slowerfunc
   var fasterelapsed
@@ -135,305 +113,15 @@ func compare_funcs_time(funcname1, funcname2):
 func warmup():
   for i in range(1e6): pass
 
-func float_cast():
-  for i in range(1e6):
-    float(1)
+func c_add_child():
+  var node = Node.new()
 
-func float_inter():
-  for i in range(1e6):
-    1.0 * 1
+  call_deferred('add_child', node)
+  node.connect('tree_entered', node.queue_free)
 
-func format_str():
-  var a = 'str1'
-  var b = 'str2'
+func c_add_child_deferred():
+  var node = Node.new()
 
-  for i in range(1e6):
-    '%s#%s' % [a, b]
+  add_child_deferred(node)
+  node.connect('tree_entered', node.queue_free)
 
-func concat_str():
-  var a = 'str1'
-  var b = 'str2'
-
-  for i in range(1e6):
-    a + '#' + b
-
-func format_stemp():
-  for i in range(1e6):
-    '%s' % [1]
-
-func format_dtemp():
-  for i in range(1e6):
-    '%d' % [1]
-
-func format_cast():
-  for i in range(1e6):
-    str(1)
-
-func dict_loop():
-  var d = {
-    test0=0, test1=0, test2=0, test3=0, test4=0, test5=0, test6=0, test7=0, test8=0, test9=0,
-    test10=0, test11=0, test12=0, test13=0, test14=0, test15=0, test16=0, test17=0, test18=0, test19=0,
-    test20=0, test21=0, test22=0, test23=0, test24=0, test25=0, test26=0, test27=0, test28=0, test29=0,
-    test30=0, test31=0, test32=0, test33=0, test34=0, test35=0, test36=0, test37=0, test38=0, test39=0,
-    test40=0, test41=0, test42=0, test43=0, test44=0, test45=0, test46=0, test47=0, test48=0, test49=0,
-    test50=0, test51=0, test52=0, test53=0, test54=0, test55=0, test56=0, test57=0, test58=0, test59=0
-  }
-
-  for i in range(1e6):
-    for key in d:
-      pass
-
-func dict_loopkeys():
-  var d = {
-    test0=0, test1=0, test2=0, test3=0, test4=0, test5=0, test6=0, test7=0, test8=0, test9=0,
-    test10=0, test11=0, test12=0, test13=0, test14=0, test15=0, test16=0, test17=0, test18=0, test19=0,
-    test20=0, test21=0, test22=0, test23=0, test24=0, test25=0, test26=0, test27=0, test28=0, test29=0,
-    test30=0, test31=0, test32=0, test33=0, test34=0, test35=0, test36=0, test37=0, test38=0, test39=0,
-    test40=0, test41=0, test42=0, test43=0, test44=0, test45=0, test46=0, test47=0, test48=0, test49=0,
-    test50=0, test51=0, test52=0, test53=0, test54=0, test55=0, test56=0, test57=0, test58=0, test59=0
-  }
-
-  for i in range(1e6):
-    for key in d.keys():
-      pass
-
-func dict_has():
-  var d = {
-    test0=0, test1=0, test2=0, test3=0, test4=0, test5=0, test6=0, test7=0, test8=0, test9=0,
-    test10=0, test11=0, test12=0, test13=0, test14=0, test15=0, test16=0, test17=0, test18=0, test19=0,
-    test20=0, test21=0, test22=0, test23=0, test24=0, test25=0, test26=0, test27=0, test28=0, test29=0,
-    test30=0, test31=0, test32=0, test33=0, test34=0, test35=0, test36=0, test37=0, test38=0, test39=0,
-    test40=0, test41=0, test42=0, test43=0, test44=0, test45=0, test46=0, test47=0, test48=0, test49=0,
-    test50=0, test51=0, test52=0, test53=0, test54=0, test55=0, test56=0, test57=0, test58=0, test59=0
-  }
-
-  for i in range(1e6):
-    if d.has('test'):
-      pass
-
-func dict_in():
-  var d = {
-    test0=0, test1=0, test2=0, test3=0, test4=0, test5=0, test6=0, test7=0, test8=0, test9=0,
-    test10=0, test11=0, test12=0, test13=0, test14=0, test15=0, test16=0, test17=0, test18=0, test19=0,
-    test20=0, test21=0, test22=0, test23=0, test24=0, test25=0, test26=0, test27=0, test28=0, test29=0,
-    test30=0, test31=0, test32=0, test33=0, test34=0, test35=0, test36=0, test37=0, test38=0, test39=0,
-    test40=0, test41=0, test42=0, test43=0, test44=0, test45=0, test46=0, test47=0, test48=0, test49=0,
-    test50=0, test51=0, test52=0, test53=0, test54=0, test55=0, test56=0, test57=0, test58=0, test59=0
-  }
-
-  for i in range(1e6):
-    if 'test' in d:
-      pass
-
-func call_funcref():
-  var f_ref = funcref(self, 'passonce')
-  for i in range(1e6):
-    f_ref.call_func()
-
-func call_call():
-  for i in range(1e6):
-    call('passonce')
-
-func call_callv():
-  var argument = []
-
-  for i in range(1e6):
-    callv('passonce', argument)
-
-func int_incr():
-  var a = 0
-  for i in range(1e6):
-    a = a + 1
-
-func int_increq():
-  var a = 0
-  for i in range(1e6):
-    a += 1
-
-func array_pushback():
-  var a = []
-  for i in range(1e6): a.push_back(0)
-
-func array_append():
-  var a = []
-  for i in range(1e6): a.append(0)
-
-func array_index():
-  var a = []
-  a.resize(1e6)
-  for i in range(1e6): a[i] = 0
-    
-func array_len():
-  for i in range(1e6): len(bigarray)
-    
-func array_size():
-  for i in range(1e6): bigarray.size()
-
-func array_front():
-  for i in range(1e6): bigarray.front()
-    
-func array_izero():
-  for i in range(1e6): bigarray[0]
-
-func array_back():
-  for i in range(1e6): bigarray.back()
-    
-func array_ineg():
-  for i in range(1e6): bigarray[-1]
-
-func var_script():
-  for i in range(1e6):
-    testvar # read
-    testvar = 0 # write
-  
-func var_func():
-  var localvar = 0
-  for i in range(1e6):
-    localvar # read
-    localvar = 0 # write
-    
-func var_self():
-  for i in range(1e6):
-    self.testvar # read
-    self.testvar = 0 # write
-
-func iter_for_range():
-  for i in range(1e6):
-    for x in range(1): pass
-
-func iter_for_int():
-  for i in range(1e6):
-    for x in range(1): pass
-
-func iter_for():
-  for i in range(1e6): pass
-
-func iter_while():
-  var i = 0
-  while i < 1e6: i += 1
-
-func matches():
-  var x = 0
-  for i in range(1e6):
-    if x == 1:
-      pass
-    elif x == 2:
-      pass
-    else:
-      pass
-
-func ifs():
-  var x = 0
-  for i in range(1e6):
-    if x == 1: pass
-    elif x == 2: pass
-    else: pass
-
-func parray_appendrw():
-  var pa = IntArray([])
-  var i = 0
-  while i < 1e6:
-    pa.append(i)
-    pa[i] = pa[i]
-    i += 1
-
-func array_appendrw():
-  var a = []
-  var i = 0
-  while i < 1e6:
-    a.append(i)
-    a[i] = a[i]
-    i += 1
-
-func dontcallfunc():
-  for i in range(1e6): pass
-
-func passonce(): pass
-func callfunc():
-  for i in range(1e6): passonce()
-
-func inteval():
-  var x = 1
-  for i in range(1e6):
-    if x == 0: pass
-
-func inteval_auto():
-  var x = 0
-  for i in range(1e6):
-    if x: pass
-
-func arrayeval():
-  var a = [1]
-  for i in range(1e6):
-    if a == []:
-      pass
-
-func arrayeval_auto():
-  var a = []
-  for i in range(1e6):
-    if a != null:
-      pass
-    
-func dicteval():
-  var d = {0:0}
-  for i in range(1e6):
-    if d == {}:
-      pass
-
-func dictwr_var():
-  var d = {test=0}
-  var key = 'test'
-
-  for i in range(1e6):
-    d[key] += 1
-
-func dictwr_string():
-  var d = {test=0}
-
-  for i in range(1e6):
-    d['test'] += 1
-
-func dictwr_point():
-  var d = {test=0}
-
-  for i in range(1e6):
-    d.test += 1
-
-func dictread_var():
-  var d = {test=0}
-  var key = 'test'
-
-  for i in range(1e6):
-    if d[key] == 0:
-      pass
-
-func dictread_string():
-  var d = {test=0}
-
-  for i in range(1e6):
-    if d['test'] == 0:
-      pass
-
-func dictread_point():
-  var d = {test=0}
-
-  for i in range(1e6):
-    if d.test == 0:
-      pass
-
-func dicteval_auto():
-  var d = {}
-  for i in range(1e6):
-    if d != null:
-      pass
-
-func nulleval():
-  var x = null
-  for i in range(1e6):
-    if x != null: pass
-  
-func nulleval_auto():
-  var x = null
-  for i in range(1e6):
-    if x:
-      pass
